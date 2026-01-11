@@ -1,0 +1,34 @@
+# Alpha Research Framework - Dependencies
+# ========================================
+
+# Core Data Science
+numpy>=1.21.0
+pandas>=1.3.0
+scipy>=1.7.0
+
+# Machine Learning
+scikit-learn>=1.0.0
+
+# Data Fetching
+yfinance>=0.2.0
+
+# Configuration (optional, for some experiments)
+PyYAML>=6.0
+
+# Progress bars (optional)
+tqdm>=4.62.0
+
+# Date utilities
+python-dateutil>=2.8.0
+
+# === OPTIONAL: For LSTM experiments (E1, C3) ===
+# Uncomment if you want to run LSTM experiments:
+# torch>=1.10.0
+
+# === OPTIONAL: For visualization ===
+# matplotlib>=3.4.0
+# seaborn>=0.11.0
+
+# === OPTIONAL: For experiment tracking ===
+# mlflow>=1.20.0
+# wandb>=0.12.0
