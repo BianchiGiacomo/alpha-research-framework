@@ -17,7 +17,7 @@ The critical comparison between experiments C6 and C7 proves this:
 | Ridge α | 1.0 | 100.0 |
 | **Mean IC** | **+0.036** | **-0.084** |
 | p-value | 0.14 | 0.001 |
-| Validation R² | All negative | All negative | 
+| Validation R² | All negative | All negative |
 
 **The IC flips from positive to significantly negative when overfitting is controlled.**
 
@@ -196,7 +196,7 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 ## 🤝 Contributing
 
-Contributions welcome! Please read the methodology documentation first to understand the anti-overfitting principles.
+Contributions welcome! Please read the methodology documentation first to understand the anti-overfitting principles. 
 
 ---
 
@@ -206,6 +206,6 @@ Contributions welcome! Please read the methodology documentation first to unders
 @software{alpha_research_framework,
   title={Alpha Research Framework: A Rigorous Approach to ML-Based Alpha Generation},
   year={2025},
-  url={https://github.com/yourusername/alpha_research_framework}
+  url={https://github.com/BianchiGiacomo/alpha-research-framework}
 }
 ```
