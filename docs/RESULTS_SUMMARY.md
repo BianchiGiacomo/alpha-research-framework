@@ -1,5 +1,9 @@
 # Results Summary
 
+> **Legacy (v1.0) document.** Several conclusions here, in particular the C6 vs C7
+> interpretation, the use of validation R² as an overfitting test and the reading of
+> C7's negative IC as "no alpha", have been withdrawn. See [ERRATA.md](ERRATA.md).
+
 Complete results from all experiments with actual measured values.
 
 ---

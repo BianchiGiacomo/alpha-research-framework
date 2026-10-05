@@ -3,7 +3,8 @@
     "project": "Alpha Research Framework",
     "version": "1.0.0",
     "last_updated": "2025-01-11",
-    "description": "Documented results from all experiments"
+    "description": "Documented results from all experiments",
+    "status": "LEGACY - hand-written v1.0 numbers, superseded. See docs/ERRATA.md; generated results live in results/*.json"
   },
   "experiments": {
     "E1": {

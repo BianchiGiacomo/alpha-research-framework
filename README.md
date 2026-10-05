@@ -1,211 +1,153 @@
 # Alpha Research Framework
 
-**A rigorous, reproducible framework for testing ML-based alpha generation strategies.**
+**Leakage-checked, multiple-testing-aware evaluation of ML alpha signals — and an honest record of how easy it is to fool yourself.**
 
-[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![tests](https://github.com/BianchiGiacomo/alpha-research-framework/actions/workflows/tests.yml/badge.svg)](https://github.com/BianchiGiacomo/alpha-research-framework/actions/workflows/tests.yml)
+[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-## 🎯 Key Finding
-
-This research demonstrates that **apparent alpha from ML models on public market data is primarily overfitting**.
-
-The critical comparison between experiments C6 and C7 proves this:
-
-| Metric | C6 (Weak Regularization) | C7 (Strong Regularization) |
-|--------|--------------------------|----------------------------|
-| Features | 41 | 8 |
-| Ridge α | 1.0 | 100.0 |
-| **Mean IC** | **+0.036** | **-0.084** |
-| p-value | 0.14 | 0.001 |
-| Validation R² | All negative | All negative |
-
-**The IC flips from positive to significantly negative when overfitting is controlled.**
-
-This is the classic signature of spurious patterns: complex models find noise, simple models reveal truth.
+> **Status (v0.2): under revision.** Version 1.0 claimed that comparing two
+> experiments (C6 vs C7) *proved* that ML alpha on public price data is
+> overfitting. That conclusion was withdrawn: the comparison changed seven
+> settings at once and misread a significantly negative IC as "no signal".
+> Every issue is listed in **[docs/ERRATA.md](docs/ERRATA.md)**. The legacy
+> scripts are kept unchanged in `experiments/` for transparency.
 
 ---
 
-## 📊 Experiment Results Summary
+## What this project is now
 
-### Equity Experiments (E1-E4)
+A small Python package, `alpharesearch`, plus studies built on it. The
+package exists to answer one question credibly: **would this evaluation
+protocol report alpha that is not there?**
 
-| ID | Description | Key Result | Status |
-|----|-------------|------------|--------|
-| E1 | LSTM Overfitting Demo | Train IC +0.86 → Val IC -0.06 | ✅ Severe overfitting demonstrated |
-| E2 | Cross-Sectional Targets | IC ≈ 0.02-0.03, normal decay | ✅ Weak signal |
-| E3 | Fundamentals (BIASED) | IC +0.18, p=0.0000 | ⚠️ FAKE - look-ahead bias |
-| E4 | Fundamentals (Corrected) | IC ≈ 0.02, p > 0.10 | ✅ No significance after correction |
+| Component | What it guarantees |
+|---|---|
+| `features.check_no_lookahead` | Corrupts all prices after a date and checks that no feature before it changes. |
+| `cv.walk_forward_splits` | Refuses to build splits whose purge gap is shorter than the label horizon. |
+| test `test_predictions_do_not_depend_on_future_prices` | End-to-end: out-of-sample scores up to day *t* are bit-identical when every price after *t* is replaced by noise. |
+| `metrics.rank_ic` + `newey_west_tstat` | Daily cross-sectional Spearman IC; t-stats that account for overlapping multi-day labels. |
+| `metrics.deflated_sharpe_ratio`, `probability_of_backtest_overfitting` | The number of configurations tried becomes part of the evidence (Bailey & López de Prado). |
+| `backtest.run_backtest` | Costs on traded notional, holding period = label horizon, next-day timing. |
+| `data.load_prices` | Explicit end date, parquet snapshot, SHA-256 of every file recorded in the results. |
+| `results.save_results` | Every number in the docs comes from a generated JSON with config, data hashes and code version. |
+| `synthetic.synthetic_panel` | Null panels (fat tails, volatility clustering, market factor) and panels with a planted signal of known strength. |
 
-### Crypto Experiments (C1-C7)
+## Studies
 
-| ID | Description | Key Result | Status |
-|----|-------------|------------|--------|
-| C1 | Time-Series Direction | Edge ~0.5%, IC ~0.04 | ✅ Marginal, not robust |
-| C2 | Technical Alpha | IC -0.01, p=0.55 | ✅ Not significant |
-| C3 | Production System | Sharpe 0.69, p=0.02 | ⚠️ Borderline |
-| C6 | Overfitting Demo | IC +0.036, Val R² < 0 | ⚠️ SPURIOUS |
-| C7 | **Anti-Overfitting** | **IC -0.084, p=0.001** | ✅ **MAIN RESULT** |
+### 1. Null calibration — `studies/null_calibration.py` (runs offline)
+
+Synthetic panels where the truth is known. On **null** data any detected
+alpha is a false positive; on **planted** data a good protocol should find
+the signal. Full results: [results/null_calibration.md](results/null_calibration.md).
+
+200 null panels (10 assets, 1,800 days), nominal test level 5%:
+
+| Evaluation protocol | Reports "significant alpha" on pure noise |
+|---|---|
+| **Corrected**: daily rank IC, Newey-West t, pre-registered config | **5.5%** (95% CI 2.8–9.6) |
+| Same IC, naive t-stat ignoring overlapping 5-day labels | 32.0% |
+| Legacy C7 protocol (pooled Pearson IC per fold, t-test across folds) | 22.5% |
+| Best of 12 configurations, Newey-West t | 30.0% |
+| Best of 12 configurations, Deflated Sharpe > 0.95 | 1.5% |
+
+And on the legacy headline itself: on data with **no signal at all**, the
+legacy C6 and C7 specifications produce ICs of opposite sign in **33.5%** of
+panels (C6 positive and C7 negative in 19%). A sign flip between them is
+therefore not evidence of anything.
+
+Power of the corrected protocol on a planted reversal signal: 20% at
+mean IC ≈ 0.007, 40% at IC ≈ 0.03, 100% at IC ≈ 0.08 — i.e. with 10 assets
+and ~3 years of test data, signals of realistic size (IC 0.02–0.03) are
+detected less than half the time. That limit is a result too.
+
+### 2. Cross-sectional crypto, corrected — `studies/crypto_xs_ablation.py`
+
+The replacement for legacy C6/C7: a pre-registered baseline, one factor
+varied at a time (Ridge α, feature set, transforms, horizon, training
+window, purge, universe), the legacy specifications re-run under the
+corrected evaluation, Deflated Sharpe and PBO across all trials, and a
+hold-out period evaluated once. It needs market data, and its results will
+be published in `results/crypto_xs_ablation.md` once it has been run on a
+fixed data snapshot.
+
+### Legacy v1.0 experiments — `experiments/`
+
+| ID | Topic | Still valid? |
+|---|---|---|
+| E1 | Neural net (sklearn MLP, not an LSTM) overfitting one stock | Yes, as an illustration |
+| E2 | Absolute vs cross-sectional targets | Illustration only |
+| E3 → E4 | Look-ahead bias in vendor fundamentals | **Yes** — the most useful legacy result |
+| C1–C3 | Crypto direction / technical / "production" | Superseded |
+| C6 vs C7 | "Regularization reveals no alpha" | **Withdrawn** — see [ERRATA](docs/ERRATA.md) |
 
 ---
 
-## 🚀 Quick Start
-
-### Installation
+## Quick start
 
 ```bash
-git clone https://github.com/yourusername/alpha_research_framework.git
-cd alpha_research_framework
-pip install -r requirements.txt
+git clone https://github.com/BianchiGiacomo/alpha-research-framework.git
+cd alpha-research-framework
+pip install -e .[data,test]
+
+pytest                                        # leakage + statistics test-suite
+python run_experiments.py --study null        # null calibration (~5 min, offline)
+python run_experiments.py --study crypto      # corrected crypto study (downloads data)
+python run_experiments.py --study crypto --synthetic   # same pipeline, no network
 ```
 
-### Run Key Comparison (Recommended)
+Market data is cached in `data/cache/{ticker}_{start}_{end}.parquet`. Files
+put there by hand (from any vendor, columns `date, open, high, low, close,
+volume`) are used instead of downloading.
 
-```bash
-# Run the critical C6 vs C7 comparison
-python run_experiments.py --compare
+Using the package directly:
+
+```python
+from alpharesearch.data import load_prices
+from alpharesearch.pipeline import StudyConfig
+from alpharesearch.study import evaluate
+
+panel = load_prices(["BTC-USD", "ETH-USD", "SOL-USD", "XRP-USD"], "2020-01-01", "2026-01-01")
+res = evaluate(panel, StudyConfig(ridge_alpha=100, horizon=5), first_test="2022-03-01")
+print(res["ic"])          # mean rank IC, Newey-West t, hit rate, ...
+print(res["long_short"])  # net/gross Sharpe, turnover, drawdown
 ```
 
-### Run Individual Experiments
-
-```bash
-# List all experiments
-python run_experiments.py --list
-
-# Run specific experiment
-python run_experiments.py -e C7    # Main result
-python run_experiments.py -e E1    # Overfitting demo
-python run_experiments.py -e E3    # Look-ahead bias demo
-
-# Show documented results without running
-python run_experiments.py --show
-```
-
-### Run All Experiments
-
-```bash
-# Full test suite (~15-20 minutes)
-python run_experiments.py --all
-```
-
----
-
-## 📁 Project Structure
+## Project structure
 
 ```
-alpha_research_framework/
-├── README.md                 # This file
-├── requirements.txt          # Dependencies
-├── run_experiments.py        # Unified experiment runner
-├── experiments/
-│   ├── equity/
-│   │   ├── E1_single_stock_lstm.py    # LSTM overfitting
-│   │   ├── E2_cross_sectional.py      # Cross-sectional targets
-│   │   ├── E3_fundamentals_bias.py    # Look-ahead bias demo
-│   │   └── E4_annual_fundamentals.py  # Bias-corrected
-│   └── crypto/
-│       ├── C1_timeseries.py           # Direction prediction
-│       ├── C2_technical_alpha.py      # Technical indicators
-│       ├── C3_production_system.py    # Full system
-│       ├── C6_overfitting_demo.py     # ⚠️ Shows overfitting
-│       └── C7_robust_final.py         # ✅ Main result
-├── docs/
-│   ├── RESEARCH_JOURNEY.md   # Full narrative
-│   ├── METHODOLOGY.md        # Technical details
-│   └── RESULTS_SUMMARY.md    # All results
-└── results/
-    └── documented_results.json
+alpharesearch/      core package (data, features, cv, pipeline, backtest, metrics, results)
+studies/            corrected studies; each writes results/<name>.json + .md
+tests/              leakage, CV, statistics and backtest tests (run in CI)
+experiments/        legacy v1.0 scripts, unchanged
+docs/ERRATA.md      what was wrong in v1.0 and where it is fixed
+docs/METHODOLOGY.md legacy methodology notes (see errata)
+results/            generated results; documented_results.json is legacy
 ```
 
----
+## Roadmap
 
-## 🔬 Methodology Highlights
+1. **Credible core** (this release): leakage tests, correct statistics, null calibration.
+2. Run the corrected crypto study on a published data snapshot; positive controls
+   with documented factors (momentum, short-term reversal, low volatility).
+3. Larger survivorship-free universes; purged K-fold / CPCV; more model families
+   evaluated under the same protocol.
 
-### Anti-Overfitting Techniques
+## Disclaimer
 
-1. **Walk-Forward Validation**: Train on past, test on future (no shuffling)
-2. **Purge Gap**: 5-10 day gap between train/test to prevent leakage
-3. **Feature Reduction**: 8 features max (vs 41 in overfit version)
-4. **Strong Regularization**: Ridge α = 100 (vs 1.0 in overfit version)
-5. **Cross-Sectional Targets**: Rank-based to remove market trend
+Research code for educational purposes. Not financial advice.
 
-### Statistical Rigor
+## License
 
-- **IC t-test**: Test if mean IC is significantly different from zero
-- **Multiple Folds**: 40-70 walk-forward windows per experiment
-- **Validation R²**: Must be non-negative (negative = overfitting)
+MIT — see [LICENSE](LICENSE).
 
----
-
-## 📈 Key Insights
-
-### What We Learned
-
-1. **Neural networks overfit easily** on financial data (E1)
-2. **Look-ahead bias creates fake alpha** - always check data timestamps (E3 vs E4)
-3. **Positive IC with negative validation R² = overfitting** (C6)
-4. **Strong regularization reveals truth** (C7)
-5. **Public price data has no exploitable alpha** with standard ML
-
-### What Works
-
-- Walk-forward validation with purge gaps
-- Cross-sectional (ranking) targets
-- Minimal features (8-10 max)
-- Strong regularization (Ridge α ≥ 100)
-- Statistical significance testing
-
-### What Doesn't Work
-
-- Complex models (LSTM, deep MLP) without heavy regularization
-- Many features (>20) without selection
-- Absolute return targets (includes beta)
-- Using current data for historical predictions
-
----
-
-## 📚 Documentation
-
-- **[RESEARCH_JOURNEY.md](docs/RESEARCH_JOURNEY.md)**: Full narrative from hypothesis to null result
-- **[METHODOLOGY.md](docs/METHODOLOGY.md)**: Technical details and anti-overfitting checklist
-- **[RESULTS_SUMMARY.md](docs/RESULTS_SUMMARY.md)**: Complete results tables
-
----
-
-## 🎓 Academic Value
-
-This framework demonstrates:
-
-1. **Rigorous methodology** for financial ML research
-2. **Honest null result** - finding no alpha is valid science
-3. **Reproducible experiments** with clear documentation
-4. **Overfitting detection** techniques applicable to any ML project
-
----
-
-## ⚠️ Disclaimer
-
-This is **research code** for educational purposes. Results are based on historical data and do not guarantee future performance. This is not financial advice.
-
----
-
-## 📄 License
-
-MIT License - see [LICENSE](LICENSE) for details.
-
----
-
-## 🤝 Contributing
-
-Contributions welcome! Please read the methodology documentation first to understand the anti-overfitting principles. 
-
----
-
-## 📖 Citation
+## Citation
 
 ```bibtex
 @software{alpha_research_framework,
-  title={Alpha Research Framework: A Rigorous Approach to ML-Based Alpha Generation},
-  year={2025},
-  url={https://github.com/BianchiGiacomo/alpha-research-framework}
+  title  = {Alpha Research Framework: leakage-checked, multiple-testing-aware evaluation of ML alpha signals},
+  author = {Bianchi, Giacomo},
+  year   = {2026},
+  url    = {https://github.com/BianchiGiacomo/alpha-research-framework}
 }
 ```

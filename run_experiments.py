@@ -3,9 +3,13 @@
 Alpha Research Framework - Experiment Runner
 =============================================
 
-Unified runner for all experiments in the framework.
+Unified runner for the corrected studies (studies/) and the legacy v1.0
+experiments (experiments/). The legacy experiments are kept for reference
+only; see docs/ERRATA.md for why their conclusions were withdrawn.
 
 Usage:
+    python run_experiments.py --study null    # Null calibration (offline, synthetic)
+    python run_experiments.py --study crypto  # Corrected crypto study (needs data)
     python run_experiments.py --list          # List all experiments
     python run_experiments.py --show          # Show documented results
     python run_experiments.py --compare       # Run C6 vs C7 comparison
@@ -20,7 +24,13 @@ import os
 import json
 from datetime import datetime
 
-# Experiment catalog with updated expected results
+# Corrected studies built on the alpharesearch package
+STUDIES = {
+    'null': 'studies/null_calibration.py',
+    'crypto': 'studies/crypto_xs_ablation.py',
+}
+
+# Legacy v1.0 experiment catalog ("expected" = numbers reported in v1.0)
 EXPERIMENTS = {
     'E1': {
         'name': 'Single Stock LSTM',
@@ -82,7 +92,7 @@ EXPERIMENTS = {
         'name': 'Cross-Sectional v3 (Robust Final)',
         'file': 'experiments/crypto/C7_robust_final.py',
         'description': '✅ Main result with anti-overfitting techniques',
-        'expected': 'IC -0.084, p = 0.001 (PROOF: no alpha)',
+        'expected': 'IC -0.084, p = 0.001 (v1.0 reading withdrawn, see docs/ERRATA.md)',
         'runtime': '~4 min'
     }
 }
@@ -113,7 +123,7 @@ def list_experiments():
         print(f"      Runtime: {exp['runtime']}")
     
     print("\n" + "=" * 70)
-    print("\n✨ RECOMMENDED: Run --compare to see the key C6 vs C7 finding")
+    print("\nLegacy experiments only. Start with: python run_experiments.py --study null")
     print()
 
 
@@ -218,13 +228,16 @@ def run_comparison():
     print("KEY COMPARISON: C6 (Overfitting) vs C7 (Robust)")
     print("=" * 70)
     print("""
-    This comparison is the MAIN FINDING of the research.
+    LEGACY: the v1.0 conclusion drawn from this comparison is withdrawn
+    (see docs/ERRATA.md). It is kept for reference only.
     
-    C6 uses weak regularization (41 features, Ridge α=1.0)
-    C7 uses strong regularization (8 features, Ridge α=100.0)
-    
-    The IC should flip from POSITIVE (C6) to NEGATIVE (C7),
-    proving that C6's positive IC was pure overfitting.
+    C6: 41 features, Ridge α=1.0, 10 coins, 3-day horizon
+    C7: 8 features, Ridge α=100.0, 5 coins, 5-day horizon
+    (and different start date, training window and purge gap)
+
+    Because seven settings change at once, a change in IC cannot be
+    attributed to regularization. Use --study crypto for the controlled
+    one-factor-at-a-time version.
     """)
     print("=" * 70)
     
@@ -240,17 +253,13 @@ def run_comparison():
     print("COMPARISON COMPLETE")
     print("=" * 70)
     print("""
-    Expected Results:
-    
-    C6 (Overfit):  IC ≈ +0.036, p ≈ 0.14
-    C7 (Robust):   IC ≈ -0.084, p ≈ 0.001
-    
-    The IC flips from POSITIVE to NEGATIVE!
-    
-    This proves:
-    1. C6's positive IC was overfitting (fitting noise)
-    2. C7's negative IC reveals the truth (no alpha exists)
-    3. Strong regularization is essential for valid results
+    Results reported in v1.0 (hand-written, not reproducible):
+
+    C6:  IC ≈ +0.036, p ≈ 0.14
+    C7:  IC ≈ -0.084, p ≈ 0.001
+
+    A significantly negative IC is a signal with the opposite sign, not
+    evidence of "no alpha". See docs/ERRATA.md.
     """)
 
 
@@ -279,41 +288,49 @@ def run_all():
     print("\n✨ Run 'python run_experiments.py --show' to see documented results")
 
 
+def run_study(name, extra_args):
+    """Run one of the corrected studies."""
+    script = os.path.join(os.path.dirname(os.path.abspath(__file__)), STUDIES[name])
+    return subprocess.run([sys.executable, script] + extra_args,
+                          cwd=os.path.dirname(os.path.abspath(__file__))).returncode == 0
+
+
 def main():
     parser = argparse.ArgumentParser(
         description='Alpha Research Framework - Experiment Runner',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python run_experiments.py --list          List all experiments
+  python run_experiments.py --study null    Null calibration (offline)
+  python run_experiments.py --study crypto  Corrected crypto study (needs data)
+  python run_experiments.py --list          List all legacy experiments
   python run_experiments.py --show          Show documented results
-  python run_experiments.py --compare       Run C6 vs C7 comparison (RECOMMENDED)
+  python run_experiments.py --compare       Run legacy C6 vs C7 comparison
   python run_experiments.py -e C7           Run specific experiment
   python run_experiments.py --all           Run all experiments
         """
     )
     
+    parser.add_argument('--study', choices=sorted(STUDIES),
+                        help='Run a corrected study (extra args are passed through)')
     parser.add_argument('--list', '-l', action='store_true',
                         help='List all available experiments')
     parser.add_argument('--show', '-s', action='store_true',
                         help='Show documented results')
     parser.add_argument('--compare', '-c', action='store_true',
-                        help='Run C6 vs C7 comparison (main finding)')
+                        help='Run legacy C6 vs C7 comparison (withdrawn, see docs/ERRATA.md)')
     parser.add_argument('--experiment', '-e', type=str,
                         help='Run specific experiment (E1, E2, ..., C7)')
     parser.add_argument('--all', '-a', action='store_true',
                         help='Run all experiments')
     
-    args = parser.parse_args()
-    
-    # Default to showing help if no args
-    if len(sys.argv) == 1:
-        # Default: run C7 (main result)
-        print("\nNo arguments provided. Running C7 (main result)...")
-        print("Use --help for options, --compare for key finding.\n")
-        run_experiment('C7')
-        return
-    
+    args, extra = parser.parse_known_args()
+
+    if args.study:
+        sys.exit(0 if run_study(args.study, extra) else 1)
+    if extra:
+        parser.error(f"unrecognized arguments: {' '.join(extra)}")
+
     if args.list:
         list_experiments()
     elif args.show:
