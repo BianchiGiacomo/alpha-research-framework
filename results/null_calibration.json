@@ -1,0 +1,188 @@
+{
+  "study": "null_calibration",
+  "generated_at": "2026-10-05T20:09:31+00:00",
+  "environment": {
+    "alpharesearch": "0.2.0",
+    "git_commit": "98c3872654d70d55e6f4f992898a4f10d74db2eb",
+    "python": "3.11.15",
+    "numpy": "2.4.6",
+    "pandas": "3.0.6",
+    "scipy": "1.17.1",
+    "scikit-learn": "1.9.1"
+  },
+  "description": "False-positive rate and power of evaluation protocols on synthetic panels",
+  "setup": {
+    "n_assets": 10,
+    "n_days": 1800,
+    "first_test": "2019-06-05",
+    "baseline": {
+      "feature_set": "compact",
+      "feature_transform": "cs_rank",
+      "target_transform": "cs_rank",
+      "horizon": 5,
+      "ridge_alpha": 100.0,
+      "train_days": 500,
+      "test_days": 30,
+      "purge": 10,
+      "expanding": false,
+      "min_history": 60,
+      "liquidity_top_n": null
+    },
+    "legacy_c6": {
+      "feature_set": "extended",
+      "feature_transform": "none",
+      "target_transform": "none",
+      "horizon": 3,
+      "ridge_alpha": 1.0,
+      "train_days": 365,
+      "test_days": 30,
+      "purge": 5,
+      "expanding": false,
+      "min_history": 60,
+      "liquidity_top_n": null
+    },
+    "legacy_c7": {
+      "feature_set": "compact",
+      "feature_transform": "none",
+      "target_transform": "none",
+      "horizon": 5,
+      "ridge_alpha": 100.0,
+      "train_days": 500,
+      "test_days": 30,
+      "purge": 10,
+      "expanding": false,
+      "min_history": 60,
+      "liquidity_top_n": null
+    },
+    "grid_size": 12,
+    "null_seeds": 200,
+    "power_seeds": 50,
+    "nominal_level": 0.05
+  },
+  "false_positive_rate": {
+    "corrected_rank_ic_newey_west": {
+      "rate": 0.055,
+      "ci95": [
+        0.027772,
+        0.096278
+      ],
+      "n": 200
+    },
+    "same_ic_naive_t_ignoring_overlap": {
+      "rate": 0.32,
+      "ci95": [
+        0.255961,
+        0.38947
+      ],
+      "n": 200
+    },
+    "legacy_C7_fold_pearson_t": {
+      "rate": 0.225,
+      "ci95": [
+        0.169103,
+        0.28924
+      ],
+      "n": 200
+    },
+    "legacy_C6_fold_pearson_t": {
+      "rate": 0.12,
+      "ci95": [
+        0.07842,
+        0.173272
+      ],
+      "n": 200
+    },
+    "best_of_12_configs_t_nw": {
+      "rate": 0.3,
+      "ci95": [
+        0.23739,
+        0.36865
+      ],
+      "n": 200
+    },
+    "best_of_12_configs_dsr_above_0.95": {
+      "rate": 0.015,
+      "ci95": [
+        0.003104,
+        0.043208
+      ],
+      "n": 200
+    }
+  },
+  "legacy_sign_flip_under_null": {
+    "c6_c7_opposite_sign": {
+      "rate": 0.335,
+      "ci95": [
+        0.269979,
+        0.404997
+      ],
+      "n": 200
+    },
+    "c6_positive_and_c7_negative": {
+      "rate": 0.19,
+      "ci95": [
+        0.138103,
+        0.251332
+      ],
+      "n": 200
+    },
+    "c7_negative_and_significant": {
+      "rate": 0.03,
+      "ci95": [
+        0.011087,
+        0.064151
+      ],
+      "n": 200
+    }
+  },
+  "power": {
+    "k=0.02": {
+      "mean_ic": 0.007179,
+      "detection_t_nw>1.96": {
+        "rate": 0.2,
+        "ci95": [
+          0.100302,
+          0.337183
+        ],
+        "n": 50
+      },
+      "median_sharpe_net": -0.145255
+    },
+    "k=0.04": {
+      "mean_ic": 0.028521,
+      "detection_t_nw>1.96": {
+        "rate": 0.4,
+        "ci95": [
+          0.264078,
+          0.548206
+        ],
+        "n": 50
+      },
+      "median_sharpe_net": 0.272628
+    },
+    "k=0.08": {
+      "mean_ic": 0.081071,
+      "detection_t_nw>1.96": {
+        "rate": 1.0,
+        "ci95": [
+          0.928878,
+          1.0
+        ],
+        "n": 50
+      },
+      "median_sharpe_net": 1.142
+    }
+  },
+  "null_distribution_summary": {
+    "baseline_sharpe_net_p5_p50_p95": [
+      -1.246112,
+      -0.349878,
+      0.600718
+    ],
+    "best_of_grid_sharpe_net_p5_p50_p95": [
+      -0.401274,
+      0.276407,
+      1.066711
+    ]
+  }
+}
